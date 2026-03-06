@@ -1,0 +1,64 @@
+#include "GpsMenu.h"
+#include "core/display.h"
+#include "core/settings.h"
+#include "core/utils.h"
+#include "modules/gps/gps_tracker.h"
+#include "modules/gps/wardriving.h"
+#include <math.h>
+
+void GpsMenu::optionsMenu() {
+    options = {
+        {"وارد رايفنج",    [this]() { wardrivingMenu(); }},
+#if !defined(LITE_VERSION)
+        {"متتبع جي بي اس", [=]() { GPSTracker(); }       },
+#endif
+        {"إعدادات",        [this]() { configMenu(); }    },
+    };
+    addOptionToMainMenu();
+
+    String txt = "GPS (" + String(bruceConfigPins.gpsBaudrate) + " bps)";
+    loopOptions(options, MENU_TYPE_SUBMENU, txt.c_str());
+}
+
+void GpsMenu::wardrivingMenu() {
+    options = {
+        {"بحث شبكات الواي فاي", []() { Wardriving(true, false); }},
+        {"بحث أجهزة البلوتوث",  []() { Wardriving(false, true); }},
+        {"بحث الكل",            []() { Wardriving(true, true); } },
+        {"رجوع",                [this]() { optionsMenu(); }      },
+    };
+
+    loopOptions(options, MENU_TYPE_SUBMENU, "وارد رايفنج");
+}
+void GpsMenu::configMenu() {
+    options = {
+        {"معدل الباود",      setGpsBaudrateMenu                                 },
+        {"تثبيتات جي بي اس", [=]() { setUARTPinsMenu(bruceConfigPins.gps_bus); }},
+        {"رجوع",             [this]() { optionsMenu(); }                        },
+    };
+
+    loopOptions(options, MENU_TYPE_SUBMENU, "GPS Config");
+}
+
+void GpsMenu::drawIcon(float scale) {
+    clearIconArea();
+    int radius = scale * 18;
+    if (radius % 2 != 0) radius++;
+
+    int tangentX = sqrt(radius * radius - (radius / 2 * radius / 2));
+    int32_t tangentY = radius / 2;
+
+    tft.fillCircle(iconCenterX, iconCenterY - radius / 2, radius, bruceConfig.priColor);
+    tft.fillTriangle(
+        iconCenterX - tangentX,
+        iconCenterY - radius / 2 + tangentY,
+        iconCenterX + tangentX,
+        iconCenterY - radius / 2 + tangentY,
+        iconCenterX,
+        iconCenterY + 1.5 * radius,
+        bruceConfig.priColor
+    );
+    tft.fillCircle(iconCenterX, iconCenterY - radius / 2, radius / 2, bruceConfig.bgColor);
+
+    tft.drawEllipse(iconCenterX, iconCenterY + 1.5 * radius, 1.5 * radius, radius / 2, bruceConfig.priColor);
+}
