@@ -1,6 +1,9 @@
 name: Manual Build (Select Environment)
 # All credits to Ninja-Jr @ninjajr
 on:
+  push:
+    branches:
+      - codex/cyd-2432s028-build
   workflow_dispatch:
     inputs:
       target_branch:
@@ -11,7 +14,7 @@ on:
       environment:
         description: 'Select environment to build'
         required: true
-        default: 'lilygo-t-embed-cc1101'
+        default: 'CYD-2432S028'
         type: choice
         options:
           - "m5stack-cardputer"
@@ -72,13 +75,22 @@ jobs:
     name: Build ${{ github.event.inputs.environment }}
     runs-on: ubuntu-latest
     env:
-      SELECTED_ENV: ${{ github.event.inputs.environment }}
+      SELECTED_ENV: ${{ inputs.environment || 'CYD-2432S028' }}
 
     steps:
+      - name: Validate source branch
+        env:
+          SOURCE_BRANCH: ${{ inputs.target_branch || github.ref_name }}
+        run: |
+          if [[ -z "$SOURCE_BRANCH" || "$SOURCE_BRANCH" == 'Branch to build from' ]]; then
+            echo 'Enter an existing branch name, for example main.' >&2
+            exit 1
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.target_branch }}
+          ref: ${{ inputs.target_branch || github.ref_name }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
