@@ -1,6 +1,9 @@
 name: Manual Build (Select Environment)
 # All credits to Ninja-Jr @ninjajr
 on:
+  push:
+    branches:
+      - codex/cyd-2432s028-build
   workflow_dispatch:
     inputs:
       target_branch:
@@ -11,7 +14,7 @@ on:
       environment:
         description: 'Select environment to build'
         required: true
-        default: 'lilygo-t-embed-cc1101'
+        default: 'CYD-2432S028'
         type: choice
         options:
           - "m5stack-cardputer"
@@ -72,13 +75,22 @@ jobs:
     name: Build ${{ github.event.inputs.environment }}
     runs-on: ubuntu-latest
     env:
-      SELECTED_ENV: ${{ github.event.inputs.environment }}
+      SELECTED_ENV: ${{ inputs.environment || 'CYD-2432S028' }}
 
     steps:
+      - name: Validate source branch
+        env:
+          SOURCE_BRANCH: ${{ inputs.target_branch || github.ref_name }}
+        run: |
+          if [[ -z "$SOURCE_BRANCH" || "$SOURCE_BRANCH" == 'Branch to build from' ]]; then
+            echo 'Enter an existing branch name, for example main.' >&2
+            exit 1
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.target_branch }}
+          ref: ${{ inputs.target_branch || github.ref_name }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -137,6 +149,21 @@ jobs:
           set -o pipefail
           echo "Building environment: ${{ env.SELECTED_ENV }}"
           platformio run -e "${{ env.SELECTED_ENV }}" | tee "build-${{ env.SELECTED_ENV }}.log"
+
+      - name: Package CYD firmware with Arabic font
+        if: env.SELECTED_ENV == 'CYD-2432S028'
+        run: |
+          set -euo pipefail
+          test -s Bruce-CYD-2432S028.bin
+          test -s data/Arabic_22.vlw
+          platformio run -e CYD-2432S028 -t buildfs
+          test -s .pio/build/CYD-2432S028/littlefs.bin
+          python -m esptool --chip esp32 merge-bin \
+            -o Bruce-CYD-2432S028-Arabic-full.bin \
+            0x0 Bruce-CYD-2432S028.bin \
+            0x3A0000 .pio/build/CYD-2432S028/littlefs.bin
+          test "$(stat -c%s Bruce-CYD-2432S028-Arabic-full.bin)" -le 4194304
+          sha256sum Bruce-CYD-2432S028-Arabic-full.bin
 
       - name: Build summary
         run: |

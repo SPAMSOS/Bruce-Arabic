@@ -13,6 +13,11 @@ from os.path import basename, dirname, exists, isfile, join
 
 Import("env")  # type: ignore
 
+# These Arduino libraries use byte, Serial and delay in their own translation
+# units without including Arduino.h. Ensure C++ compilation sees their types.
+if env.subst("$PIOENV") == "CYD-2432S028":
+    env.Append(CXXFLAGS=["-include", "Arduino.h"])
+
 FRAMEWORK_DIR = env.PioPlatform().get_package_dir("framework-arduinoespressif32-libs")
 board_mcu = env.BoardConfig()
 mcu = board_mcu.get("build.mcu", "")
